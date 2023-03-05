@@ -12,6 +12,7 @@ cv_fold = 10
 random_seed = 42
 
 def Load_with_Preprocess(input_file):
+    # Load Data
     data = read_csv(input_file)
     y = data['Legendary']
     X = data.iloc[:, 1:-1]
@@ -33,6 +34,7 @@ def Load_with_Preprocess(input_file):
     return X,y
 
 def DecisionTree(X,y):
+    # Parameter Configuration
     criterions = ['gini', 'entropy', 'log_loss']
     max_depth_list = range(1, 30)
     result_dict = dict()
@@ -40,6 +42,7 @@ def DecisionTree(X,y):
     best_depth = 0
     for criteria in criterions:
         result_dict[criteria] = []
+    # Use a for loop to tune max_depth
     for max_depth in max_depth_list:
         for criteria in criterions:
             DT = DecisionTreeClassifier(
@@ -52,10 +55,11 @@ def DecisionTree(X,y):
                 best_depth = max_depth
                 best_criteria = criteria
                 
-    #Retrain model to get parameters
+    #Retrain to get model 
     DT_model = DecisionTreeClassifier(
     max_depth=best_depth, criterion=best_criteria, random_state=random_seed)
     DT_model.fit(X, y)
+    # Print Importance
     importance = dict()
     count = 0
     for xlable in X.columns.tolist():
@@ -88,12 +92,14 @@ def DecisionTree(X,y):
     plt.show()
     
 def RandomForest(X,y):
+    # Parameter Configuration
     criterions = ['gini', 'entropy', 'log_loss']
     n_estimators_list = range(100, 6100, 100)
     result_dict_RF = dict()
     best_accuracy_RF = 0
     for criteria in criterions:
         result_dict_RF[criteria] = []
+    # Use a for loop to tune max_depth
     for estimator in n_estimators_list:
         for criteria in criterions:
             RF = RandomForestClassifier(
@@ -123,7 +129,7 @@ def RandomForest(X,y):
     plt.xlabel('Max Depth')
     plt.ylabel('AUC-ROC')
     plt.show()
-    # Retrain to get the parameters
+    # Retrain to get the model and print top 10 importance
     RF_new = RandomForestClassifier(
     n_estimators=best_nestimator_RF, criterion=best_criteria_RF, n_jobs=-1, random_state=random_seed)
     RF_new.fit(X, y)
