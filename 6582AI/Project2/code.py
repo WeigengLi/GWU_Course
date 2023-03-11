@@ -1,28 +1,33 @@
 import os
 from copy import deepcopy
 from Lib import heapq
+from numpy import repeat
 
 class graph_node():
     '''
     involved constrain: ic
     '''
-    def __init__(self,node,color = -1):
+    def __init__(self,node,ic=-1):
         self.remain_value = deepcopy(color) 
         self.node = node
         self.color = -1
         self.rv = len(self.remain_value)
+        self.ic = ic
     
-    def update(self,graph):
-        iv = 0
-        for neighbor_key in Adjacent_list[self.node]:
-            neighbor = graph[neighbor_key]
-            if neighbor.color != -1:
-                iv += 1
-            else:
-                self.remain_value.discard(neighbor.color)
+    def update(self,color):
+        '''
+        Call this function if the neighbor of the node update it's color
+        '''
+        if self.color != -1:
+            return
+        self.ic -= 1
+        self.remain_value.discard(color)
         self.rv = len(self.remain_value)
-        self.iv = iv
-
+        
+    def set_color(self,color):
+        self.color = color
+        self.remain_value = set([color])
+    
     #设定优先级 less than 数字越小优先级越高
     def __lt__(self, other):
         if self.rv < other.rv:
@@ -37,38 +42,57 @@ class CSP_Node:
     gn_priority_heap : 节点的优先队列
     wait_list: 下一个遍历的节点
     '''
-    wait_list = []
-    variable = None
+    
     def __init__(self,parent=None,variable=None,value=None):
+        self.parent = parent
+        self.variable = variable
+        self.value = value
+        self.wait_list = []
         if parent is None:
-            self.graph = dict()
-            for node in Nodes:
-                self.graph[node] = graph_node(node) 
-            self.get_priority_heap()
-        else:
-            self.variable = variable
-            self.state = deepcopy(parent.state)
-            if not value:
-                self.value = value
-                self.update_state()
-            
-            
+            self.state_initial()
+        else:  
+            self.state = deepcopy(parent.state)  
+            self.update_state()      
+        self.get_priority_heap()   
     
     def update_state(self):
-        pass
+        self.state[self.variable].set_color(self.value)
+        for neighbor in Adjacent_list[self.variable]:
+            self.state[neighbor].update(self.value)
+
+    
+    def state_initial(self):
+        '''
+        iv: involved constrain = number of not colored neighbours
+        '''
+        self.state = dict()
+        for node in Nodes:
+            self.state[node] = graph_node(node=node,ic=len(Adjacent_list[node]))
     
     # 对未上色的节点进行优先级排序
-    def get_priority_heap(self):
-        priority_heap = heapq()
-        for key, item in self.graph():
+    def get_priority_heap(self):    
+        nodes = []
+        for item in self.state.values():
             if item.color == -1:
-                priority_heap.append(item)
-        self.gn_priority_heap = priority_heap
+                nodes.append(item)
+        heapq.heapify(nodes)
+        self.gn_priority_heap = nodes
            
-    def forward_check(self):
-        for key,node in self.graph:
-            node.update()
-            node.constrain_check()
+    def forward_check(self,gn,color,second_time=False):
+        
+        for neighbor_index in Adjacent_list[gn.node]:
+            neighbor = self.state[neighbor_index]
+            new_neighbor_remain = neighbor.remain_value-set([color])
+            # neighbor have same color or only have this color to choose
+            if len(new_neighbor_remain)==0:
+                return False
+            # this node can only choose one color, also forwards check it's neighbor
+            # use second time to keep forwards check at most recurs 2 times 
+            if len(new_neighbor_remain)==1 and not second_time:
+                if not self.forward_check(neighbor,new_neighbor_remain.pop(),second_time=True):
+                    return False
+        return True
+    
     
     def choose_value(self):
         value = -1
@@ -78,17 +102,27 @@ class CSP_Node:
     
     def get_next(self):
         # 从wait_list获取下个节点，如果wait_list是空，从最佳没上色的顶点扩展下个节点
-        if not self.wait_list:
-            gn = self.gn_priority_heap.heappop()
+        if(not self.wait_list):
+            gn = heapq.heappop(self.gn_priority_heap)
+            if gn == None:
+                return -1
             for remain in gn.remain_value:
-                self.wait_list.append(CSP_Node(self,gn.node,remain))
+                if(self.forward_check(gn,remain)):
+                    self.wait_list.append(CSP_Node(parent=self,variable=gn.node,value=remain))
+        # There is no legal color for this node
+        if(not self.wait_list):
+            return -1    
+            # TODO: 颜色的选择有顺序
         return self.wait_list.pop()        
 
 def CSP_Search(color):
+    '''
+    This is a backtracking search with CSP node
+    '''
     root_node = CSP_Node()
     search_level = 0 
-    tree_list = []
-    tree_list.append(root_node)
+    tree_list = list(repeat(-1,len(Nodes)+1))
+    tree_list[search_level] = root_node
     while search_level>-1:
         next=tree_list[search_level].get_next()
         if next == -1:
@@ -100,6 +134,22 @@ def CSP_Search(color):
             return tree_list
     return []
 
+def tree_exam(tree_list,print_color = True):
+    result = dict()
+    color_used = set()
+    for node in tree_list:
+        if node.variable==None:
+            continue
+        result[node.variable]=node.value
+        color_used.add(node.value)
+    if print_color: print(result)
+    for key,val in result.items():
+        for neighbor in Adjacent_list[key]:
+            if val == result[neighbor]:
+                print('Wrong Answer node',key, neighbor,'same value',val)
+                return False
+    print('Answer Passed. Number of color used:', len(color_used))
+    return True
 
 def load_text(filename):
     # Initialization
@@ -144,11 +194,16 @@ def main():
     global color
     # a list of all nodes 
     global Nodes  
-    num_color,Adjacent_list =load_text('6582AI/Project2/data/test1.txt')
+    num_color,Adjacent_list =load_text('6582AI/Project2/data/test4.txt')
     color = set(range(1,num_color+1,1))
     Nodes = list(Adjacent_list.keys())
-    
-    CSP_Search(color,Adjacent_list)
+    if num_color == -1 or not Adjacent_list:
+        print('Read In file Problem No color or edges found') 
+    result = CSP_Search(color)
+    if not result:
+        print("No result found")
+    else:
+        tree_exam(result,print= False)
 
 if __name__ == '__main__':
     main()
