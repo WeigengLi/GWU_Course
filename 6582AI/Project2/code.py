@@ -108,7 +108,20 @@ class CSP_Node:
             gn = heapq.heappop(self.gn_priority_heap)
             if gn == None:
                 return -1
+            value_constrain = dict()
             for remain in gn.remain_value:
+                value_constrain[remain] = 0
+            # calculate least constrain value
+            for neighbor in Adjacent_list[gn.node]:
+                neighbor = self.state[neighbor]
+                if neighbor.color == -1:
+                    continue
+                both_remain = gn.remain_value & neighbor.remain_value
+                for remain in both_remain:
+                    value_constrain[remain] += 1
+            sorted(value_constrain.items(), key = lambda kv:(kv[1], kv[0]))
+            # expend by order of least constrain value
+            for remain in value_constrain:
                 if(self.forward_check(gn,remain)):
                     self.wait_list.append(CSP_Node(parent=self,variable=gn.node,value=remain))
         # There is no legal color for this node
@@ -241,6 +254,8 @@ def test(inputs):
 
 def main():
     inputs=['test1.txt', 'test2.txt','test3.txt', 'test4.txt']
+    test(inputs)
+    inputs=['test5.txt']
     test(inputs)
 
 
