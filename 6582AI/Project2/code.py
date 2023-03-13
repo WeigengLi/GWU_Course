@@ -1,5 +1,6 @@
 import os
 from copy import deepcopy
+import time
 from Lib import heapq
 from numpy import repeat
 
@@ -14,7 +15,7 @@ class graph_node():
         self.color = -1
         self.rv = len(self.remain_value)
         self.ic = ic
-        self.hn = self.rv+1-(self.ic/Max_neighbour)
+        self.hn = self.rv-(self.ic/Max_neighbour)
     
     def update(self,color):
         '''
@@ -25,7 +26,7 @@ class graph_node():
         self.ic -= 1
         self.remain_value.discard(color)
         self.rv = len(self.remain_value)
-        self.hn = self.rv+self.ic/Max_neighbour
+        self.hn = self.rv-(self.ic/Max_neighbour)
         
     def set_color(self,color):
         self.color = color
@@ -116,7 +117,7 @@ class CSP_Node:
             # TODO: 颜色的选择有顺序
         return self.wait_list.pop()        
 
-def CSP_Search(color):
+def CSP_Search():
     '''
     This is a backtracking search with CSP node
     '''
@@ -143,13 +144,15 @@ def tree_exam(tree_list,print_color = True):
             continue
         result[node.variable]=node.value
         color_used.add(node.value)
-    if print_color: print(result)
+    if print_color: print('Answer: ',result)
     for key,val in result.items():
         for neighbor in Adjacent_list[key]:
             if val == result[neighbor]:
                 print('Wrong Answer node',key, neighbor,'same value',val)
                 return False
-    print('Answer Passed. Number of color used:', len(color_used))
+    print('Answer passed the constrain examination.',
+          'Number of color have:' ,len(color),
+          ' Number of color used:', len(color_used))
     return True
 
 def load_text(filename):
@@ -190,27 +193,56 @@ def load_text(filename):
                 Adjacent_list[number2].add(number1)  
     return color,Adjacent_list
 
-def main():
+def program_initialization(input):
     global Adjacent_list
     global color
     # a list of all nodes 
     global Nodes  
-    num_color,Adjacent_list =load_text('6582AI/Project2/data/test1.txt')
-    color = set(range(1,num_color+1,1))
-    Nodes = list(Adjacent_list.keys())
     global Max_neighbour
     Max_neighbour = 0
+    data_dir = '6582AI/Project2/data/'
+    num_color,Adjacent_list =load_text(data_dir+input)
+    if num_color == -1 or not Adjacent_list:
+        print('Read In file Problem No color or edges found') 
+        return False
+    color = set(range(1,num_color+1,1))
+    Nodes = list(Adjacent_list.keys())
     for value in Adjacent_list.values():
         if len(value)> Max_neighbour:
             Max_neighbour = len(value)
-    Max_neighbour = len(str(Max_neighbour))
-    if num_color == -1 or not Adjacent_list:
-        print('Read In file Problem No color or edges found') 
-    result = CSP_Search(color)
-    if not result:
-        print("No result found")
-    else:
-        tree_exam(result,print_color= True)
+    Max_neighbour = Max_neighbour+1
+    return True
+
+def calculate_time(time_start):
+    time_end=time.time()
+    cost_time = time_end-time_start
+    if cost_time < 60:
+        print('Time cost ',round(cost_time,5),'s')
+    elif cost_time < 3600:
+        print('Time cost ',(cost_time)/60,'min')
+    elif cost_time > 3600:
+        print('Time cost ',(cost_time)/3600,'hour')
+    time_start = time_end
+    return time.time()  
+
+def test(inputs):
+    time_start=time.time()
+    for input in inputs:
+        print('---------- Testing file',input,'---------- ')
+        if not program_initialization(input):
+            return False
+        result = CSP_Search()
+        time_start=calculate_time(time_start)
+        if not result:
+            print("No result found")
+        else:
+            tree_exam(result,print_color= True)
+        
+
+def main():
+    inputs=['test1.txt', 'test2.txt','test3.txt', 'test4.txt']
+    test(inputs)
+
 
 if __name__ == '__main__':
     main()
