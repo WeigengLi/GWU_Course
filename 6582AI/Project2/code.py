@@ -6,6 +6,7 @@ from numpy import repeat
 class graph_node():
     '''
     involved constrain: ic
+    hn: 更小rv 更大ic 整体取最小hn
     '''
     def __init__(self,node,ic=-1):
         self.remain_value = deepcopy(color) 
@@ -13,6 +14,7 @@ class graph_node():
         self.color = -1
         self.rv = len(self.remain_value)
         self.ic = ic
+        self.hn = self.rv+1-(self.ic/Max_neighbour)
     
     def update(self,color):
         '''
@@ -23,6 +25,7 @@ class graph_node():
         self.ic -= 1
         self.remain_value.discard(color)
         self.rv = len(self.remain_value)
+        self.hn = self.rv+self.ic/Max_neighbour
         
     def set_color(self,color):
         self.color = color
@@ -30,12 +33,8 @@ class graph_node():
     
     #设定优先级 less than 数字越小优先级越高
     def __lt__(self, other):
-        if self.rv < other.rv:
-            return True
-        elif self.rv == other.rv:
-            if self.ic > other.ic:
-                return True
-        return False
+        return self.hn < other.hn
+       
 
 class CSP_Node:
     '''
@@ -103,6 +102,8 @@ class CSP_Node:
     def get_next(self):
         # 从wait_list获取下个节点，如果wait_list是空，从最佳没上色的顶点扩展下个节点
         if(not self.wait_list):
+            if not self.gn_priority_heap:
+                return -1
             gn = heapq.heappop(self.gn_priority_heap)
             if gn == None:
                 return -1
@@ -194,16 +195,22 @@ def main():
     global color
     # a list of all nodes 
     global Nodes  
-    num_color,Adjacent_list =load_text('6582AI/Project2/data/test4.txt')
+    num_color,Adjacent_list =load_text('6582AI/Project2/data/test1.txt')
     color = set(range(1,num_color+1,1))
     Nodes = list(Adjacent_list.keys())
+    global Max_neighbour
+    Max_neighbour = 0
+    for value in Adjacent_list.values():
+        if len(value)> Max_neighbour:
+            Max_neighbour = len(value)
+    Max_neighbour = len(str(Max_neighbour))
     if num_color == -1 or not Adjacent_list:
         print('Read In file Problem No color or edges found') 
     result = CSP_Search(color)
     if not result:
         print("No result found")
     else:
-        tree_exam(result,print= False)
+        tree_exam(result,print_color= True)
 
 if __name__ == '__main__':
     main()
